@@ -1,78 +1,65 @@
 # ============================================================
-# scraper.py — Coleta de preços com Selenium
-# Versão cloud: usa Selenium padrão (Chrome já vem no GitHub Actions)
+# scraper.py — Coleta de preços via API oficial do Mercado Livre
+#
+# Muito mais confiável que Selenium para este caso:
+# - Sem Chrome, sem bloqueios
+# - Resposta em JSON limpo
+# - API pública e gratuita
 # ============================================================
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import time
+import requests
 
 
-def criar_driver():
+def coletar_preco(busca, nome_produto):
     """
-    Configura o Chrome para rodar na nuvem (sem interface gráfica).
-    O GitHub Actions já tem o Chrome instalado na máquina virtual.
-    """
-    opcoes = Options()
-    opcoes.add_argument("--headless")                # Sem janela (obrigatório na nuvem)
-    opcoes.add_argument("--no-sandbox")              # Obrigatório no Linux da nuvem
-    opcoes.add_argument("--disable-dev-shm-usage")   # Evita erros de memória
-    opcoes.add_argument("--window-size=1920,1080")
-    opcoes.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
+    Consulta a API do Mercado Livre e retorna o menor preço encontrado.
 
-    driver = webdriver.Chrome(options=opcoes)
-    return driver
+    Parâmetros:
+        busca (str)        — termo de busca (ex: "teclado aula hero68")
+        nome_produto (str) — nome amigável para exibir no log
 
+    Retorna:
+        float — menor preço encontrado
+        None  — se não conseguir coletar
+    """
+    print(f"\n🔍 Buscando: {nome_produto}")
 
-def coletar_preco(driver, url, nome_produto):
-    """
-    Navega até a URL e retorna o menor preço encontrado.
-    Reutiliza o driver já aberto — não abre novo Chrome.
-    """
+    url = "https://api.mercadolibre.com/sites/MLB/search"
+    params = {
+        "q":     busca,
+        "limit": 20       # Pega os 20 primeiros resultados
+    }
+
     try:
-        print(f"\n🔍 Buscando: {nome_produto}")
-        driver.get(url)
+        resposta = requests.get(url, params=params, timeout=10)
+        resposta.raise_for_status()  # Lança erro se status != 200
 
-        wait = WebDriverWait(driver, 15)
-        wait.until(
-            EC.presence_of_element_located(
-                (By.CLASS_NAME, "andes-money-amount__fraction")
-            )
-        )
+        dados = resposta.json()
+        resultados = dados.get("results", [])
 
-        time.sleep(1)
+        if not resultados:
+            print(f"   ⚠️ Nenhum resultado encontrado.")
+            return None
 
-        elementos = driver.find_elements(
-            By.CLASS_NAME, "andes-money-amount__fraction"
-        )
-
-        precos = []
-        for el in elementos:
-            try:
-                texto = el.text.strip()
-                if not texto:
-                    continue
-                preco = float(texto.replace(".", "").replace(",", "."))
-                if preco > 1:
-                    precos.append(preco)
-            except ValueError:
-                continue
+        # Extrai todos os preços válidos
+        precos = [
+            item["price"]
+            for item in resultados
+            if "price" in item and item["price"] > 0
+        ]
 
         if precos:
             menor = min(precos)
-            print(f"   ✅ Menor preço: R$ {menor:.2f}")
+            print(f"   ✅ Menor preço: R$ {menor:.2f} ({len(precos)} ofertas analisadas)")
             return menor
 
         print(f"   ⚠️ Nenhum preço encontrado.")
         return None
 
-    except Exception as erro:
-        print(f"   ❌ Erro: {erro}")
+    except requests.exceptions.Timeout:
+        print(f"   ❌ Timeout — API demorou demais para responder.")
+        return None
+
+    except requests.exceptions.RequestException as erro:
+        print(f"   ❌ Erro na requisição: {erro}")
         return None
