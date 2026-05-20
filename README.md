@@ -1,64 +1,65 @@
 # 🤖 Bot de Monitoramento de Preços
 
-Bot em Python que monitora preços no Mercado Livre e envia alertas por e-mail quando o preço cai abaixo de um limite configurado.
+Bot em Python que monitora preços no Mercado Livre e envia alertas por e-mail quando o preço cai abaixo de um limite. Roda automaticamente na nuvem via **GitHub Actions** — sem precisar deixar computador ligado.
 
 ## 🚀 Tecnologias
 
-- **Python 3.10+**
+- **Python 3.11**
 - **Selenium** — automação do navegador (RPA)
-- **schedule** — agendamento de tarefas
+- **GitHub Actions** — agendamento e execução na nuvem (DevOps/CI-CD)
 - **smtplib** — envio de e-mails (nativo do Python)
-- **csv** — armazenamento de histórico (nativo do Python)
+- **csv** — histórico de preços (nativo do Python)
 
-## 📁 Estrutura do Projeto
+## 📁 Estrutura
 
 ```
 price-monitor/
 │
-├── main.py          # Ponto de entrada — execute este arquivo
-├── scraper.py       # Coleta de preços com Selenium
-├── storage.py       # Leitura e escrita do histórico CSV
-├── notifier.py      # Envio de alertas por e-mail
-├── config.py        # Produtos, e-mail e configurações
-├── requirements.txt # Dependências do projeto
-└── README.md        # Este arquivo
+├── .github/
+│   └── workflows/
+│       └── monitor.yml  # Agendamento na nuvem (GitHub Actions)
+│
+├── run_once.py          # Entrada para a nuvem — roda 1 ciclo e encerra
+├── main.py              # Entrada local — roda em loop contínuo
+├── scraper.py           # Coleta de preços com Selenium
+├── storage.py           # Histórico em CSV
+├── notifier.py          # Alertas por e-mail
+├── config.py            # Produtos e configurações
+└── requirements.txt
 ```
 
-## ⚙️ Como usar
+## ⚙️ Deploy no GitHub Actions (nuvem)
 
-### 1. Clone o repositório
+### 1. Suba o projeto no GitHub
 ```bash
-git clone https://github.com/seu-usuario/price-monitor.git
-cd price-monitor
+git init
+git add .
+git commit -m "primeiro commit"
+git remote add origin https://github.com/SEU-USUARIO/price-monitor.git
+git push -u origin main
 ```
 
-### 2. Instale as dependências
-```bash
-pip install -r requirements.txt
-```
+### 2. Cadastre as credenciais de e-mail como Secrets
+No GitHub: **Settings → Secrets and variables → Actions → New repository secret**
 
-### 3. Configure o `config.py`
-- Adicione os produtos que quer monitorar
-- Configure seu e-mail e senha de app do Gmail
-  - Como gerar senha de app: [myaccount.google.com](https://myaccount.google.com) → Segurança → Senhas de app
+| Secret | Valor |
+|---|---|
+| `EMAIL_REMETENTE` | seu_email@gmail.com |
+| `EMAIL_SENHA` | senha de app do Gmail |
+| `EMAIL_DESTINATARIO` | email que vai receber o alerta |
 
-### 4. Rode o bot
-```bash
-python main.py
-```
+> Como gerar senha de app: [myaccount.google.com](https://myaccount.google.com) → Segurança → Senhas de app
+
+### 3. Pronto!
+O bot vai rodar automaticamente a cada hora. Para rodar na hora: **Actions → Monitor de Preços → Run workflow**
 
 ## 📊 Histórico de preços
 
-Cada execução salva os preços coletados em `historico_precos.csv`:
+O histórico é salvo em `historico_precos.csv` e commitado automaticamente no repositório a cada execução.
 
-| data_hora | produto | url | preco |
-|---|---|---|---|
-| 20/05/2026 10:00 | Teclado Mecânico | https://... | 189.90 |
+## 💡 Como adicionar um produto
 
-## 💡 Como adicionar um novo produto
-
-No `config.py`, adicione um item à lista `PRODUTOS`:
-
+Em `config.py`:
 ```python
 {
     "nome": "Headset Gamer",
@@ -67,10 +68,9 @@ No `config.py`, adicione um item à lista `PRODUTOS`:
 }
 ```
 
-## 🔮 Próximas melhorias (roadmap)
+## 🔮 Roadmap
 
 - [ ] Suporte a outros sites (Amazon, Kabum)
-- [ ] Gráfico de evolução de preços com matplotlib
-- [ ] Interface web simples com Flask
-- [ ] Notificação via WhatsApp (Twilio)
-- [ ] Deploy em servidor para rodar 24/7
+- [ ] Gráfico de histórico com matplotlib
+- [ ] Dashboard web com Flask
+- [ ] Notificação via WhatsApp
