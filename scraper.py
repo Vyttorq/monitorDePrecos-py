@@ -1,64 +1,76 @@
 # ============================================================
-# scraper.py — Coleta de preços via API pública do Kabum
-# Sem autenticação necessária, funciona perfeitamente na nuvem
+# scraper.py — Coleta de preços via scraping direto do Kabum
 # ============================================================
 
 import requests
-
-BASE_URL = "https://servicespub.prod.api.btgpactual.kabum.com.br/product/v1/products"
+from bs4 import BeautifulSoup
+import time
+import random
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept":     "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
 }
 
-
-def coletar_preco(busca, nome_produto):
+def coletar_preco(url, nome_produto):
     """
-    Busca o menor preço de um produto na API pública do Kabum.
-
+    Coleta o preço de um produto diretamente do site do Kabum usando BeautifulSoup.
+    
     Parâmetros:
-        busca (str)        — termo de busca (ex: "teclado aula hero68")
+        url (str)          — URL completa do produto
         nome_produto (str) — nome amigável para exibir no log
 
     Retorna:
-        float — menor preço encontrado
+        float — preço encontrado
         None  — se não encontrar
     """
     print(f"\n🔍 Buscando: {nome_produto}")
-
-    params = {
-        "page_number": 1,
-        "page_size":   20,
-        "smart_filter": busca,
-        "sort_by":     "lower_price",   # Já retorna do menor pro maior
-    }
-
+    print(f"   URL: {url}")
+    
     try:
-        resposta = requests.get(BASE_URL, headers=HEADERS, params=params, timeout=10)
-        resposta.raise_for_status()
-
-        dados      = resposta.json()
-        produtos   = dados.get("data", [])
-
-        if not produtos:
-            print(f"   ⚠️ Nenhum resultado encontrado.")
-            return None
-
-        precos = [
-            p["vlr_preco_desconto"] if p.get("vlr_preco_desconto") else p["vlr_preco"]
-            for p in produtos
-            if p.get("vlr_preco") and p.get("des_indisponivel") is False
-        ]
-
-        if precos:
-            menor = min(precos)
-            print(f"   ✅ Menor preço: R$ {menor:.2f} ({len(precos)} ofertas)")
-            return menor
-
-        print(f"   ⚠️ Nenhum preço disponível.")
+        # Adiciona um pequeno delay aleatório para evitar bloqueios
+        time.sleep(random.uniform(1, 3))
+        
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Tenta encontrar o preço principal
+        preco_elemento = soup.find('meta', {'property': 'product:price:amount'})
+        
+        if preco_elemento:
+            preco_text = preco_elemento.get('content', '')
+            preco = float(preco_text.replace(',', '.'))
+            print(f"   ✅ Preço encontrado: R$ {preco:.2f}")
+            return preco
+        else:
+            # Tenta outros seletores comuns
+            preco_elemento = soup.find('div', class_='preco_desconto_avista')
+            if not preco_elemento:
+                preco_elemento = soup.find('span', class_='preco_desconto')
+            if not preco_elemento:
+                preco_elemento = soup.find('div', class_='preco_promocao')
+            
+            if preco_elemento:
+                preco_text = preco_elemento.get_text(strip=True)
+                # Extrai apenas os números e vírgulas
+                import re
+                preco_match = re.search(r'[\d,]+', preco_text)
+                if preco_match:
+                    preco_str = preco_match.group().replace(',', '.')
+                    preco = float(preco_str)
+                    print(f"   ✅ Preço encontrado: R$ {preco:.2f}")
+                    return preco
+        
+        print(f"   ⚠️  Preço não encontrado na página")
+        return None
+        
+    except Exception as erro:
+        print(f"   ❌ Erro ao coletar preço: {erro}")
         return None
 
-    except requests.exceptions.RequestException as erro:
-        print(f"   ❌ Erro na requisição: {erro}")
-        return None

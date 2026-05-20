@@ -1,6 +1,5 @@
 # ============================================================
-# main.py — Ponto de entrada do Bot
-# Execute: python main.py
+# main.py — Ponto de entrada do Bot (versão simplificada)
 # ============================================================
 
 import schedule
@@ -15,15 +14,13 @@ from config import (
     INTERVALO_SEGUNDOS,
     ARQUIVO_CSV,
 )
-from scraper import criar_driver, coletar_preco
+from scraper import coletar_preco
 from storage import salvar_preco
 from notifier import enviar_alerta
 
 
-def verificar_precos(driver):
-    """
-    Percorre todos os produtos usando o mesmo driver já aberto.
-    """
+def verificar_precos():
+    """Verifica preços de todos os produtos."""
     print(f"\n{'=' * 52}")
     print(f"  🤖 Verificação iniciada — {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     print(f"{'=' * 52}")
@@ -33,7 +30,7 @@ def verificar_precos(driver):
         url    = produto["url"]
         limite = produto["preco_alerta"]
 
-        preco_atual = coletar_preco(driver, url, nome)  # ← passa o driver existente
+        preco_atual = coletar_preco(url, nome)
 
         if preco_atual is None:
             print(f"   ⚠️  Pulando '{nome}' — não foi possível coletar.\n")
@@ -53,7 +50,7 @@ def verificar_precos(driver):
                 url          = url,
             )
         else:
-            diferenca = preco_atual - limite
+            diferenca = limite - preco_atual
             print(f"   📊 R$ {preco_atual:.2f} | Faltam R$ {diferenca:.2f} pro alerta\n")
 
     print(f"\n  ✅ Verificação concluída!")
@@ -63,14 +60,11 @@ def verificar_precos(driver):
 if __name__ == "__main__":
     print("🚀 Bot de Monitoramento de Preços iniciado!")
     print(f"📋 {len(PRODUTOS)} produto(s) na lista")
-    print("🌐 Abrindo navegador...\n")
-
-    driver = criar_driver()  # ← Chrome abre UMA vez só
+    print("🌐 Iniciando verificação...\n")
 
     try:
-        verificar_precos(driver)
-
-        schedule.every(INTERVALO_SEGUNDOS).seconds.do(verificar_precos, driver)
+        verificar_precos()
+        schedule.every(INTERVALO_SEGUNDOS).seconds.do(verificar_precos)
 
         while True:
             schedule.run_pending()
@@ -78,6 +72,3 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         print("\n🛑 Bot encerrado pelo usuário.")
-
-    finally:
-        driver.quit()  # ← Fecha o Chrome ao sair
