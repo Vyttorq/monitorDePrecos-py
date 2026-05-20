@@ -3,12 +3,11 @@
 # ============================================================
 
 from datetime import datetime
-from scraper import obter_token, coletar_preco
+from scraper import coletar_preco
 from storage import salvar_preco
 from notifier import enviar_alerta
 from config import (
     PRODUTOS,
-    ML_CLIENT_ID, ML_CLIENT_SECRET,
     EMAIL_REMETENTE, EMAIL_SENHA, EMAIL_DESTINATARIO,
     ARQUIVO_CSV,
 )
@@ -20,15 +19,12 @@ def main():
     print(f"  ☁️  Rodando na nuvem via GitHub Actions")
     print(f"{'=' * 52}\n")
 
-    # Autentica uma vez e reutiliza o token para todos os produtos
-    token = obter_token(ML_CLIENT_ID, ML_CLIENT_SECRET)
-
     for produto in PRODUTOS:
         nome   = produto["nome"]
         busca  = produto["busca"]
         limite = produto["preco_alerta"]
 
-        preco_atual = coletar_preco(busca, nome, token)
+        preco_atual = coletar_preco(busca, nome)
 
         if preco_atual is None:
             print(f"   ⚠️  Pulando '{nome}'\n")
@@ -45,7 +41,7 @@ def main():
                 nome_produto = nome,
                 preco_atual  = preco_atual,
                 preco_limite = limite,
-                url          = f"https://lista.mercadolivre.com.br/{busca.replace(' ', '-')}",
+                url          = f"https://www.kabum.com.br/busca/{busca.replace(' ', '-')}",
             )
         else:
             diferenca = preco_atual - limite

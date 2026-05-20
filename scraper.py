@@ -1,38 +1,25 @@
 # ============================================================
-# scraper.py — Coleta de preços via API oficial do Mercado Livre
-# Autenticação via OAuth 2.0 (Client Credentials)
+# scraper.py — Coleta de preços via API pública do Kabum
+# Sem autenticação necessária, funciona perfeitamente na nuvem
 # ============================================================
 
 import requests
 
+BASE_URL = "https://servicespub.prod.api.btgpactual.kabum.com.br/product/v1/products"
 
-def obter_token(client_id, client_secret):
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept":     "application/json",
+}
+
+
+def coletar_preco(busca, nome_produto):
     """
-    Autentica na API do Mercado Livre e retorna o access token.
-    O token expira em 6 horas — gerado a cada execução do bot.
-    """
-    url = "https://api.mercadolibre.com/oauth/token"
-    payload = {
-        "grant_type":    "client_credentials",
-        "client_id":     client_id,
-        "client_secret": client_secret,
-    }
-
-    resposta = requests.post(url, data=payload, timeout=10)
-    resposta.raise_for_status()
-    token = resposta.json()["access_token"]
-    print("🔑 Token obtido com sucesso!")
-    return token
-
-
-def coletar_preco(busca, nome_produto, token):
-    """
-    Busca o menor preço de um produto via API do ML.
+    Busca o menor preço de um produto na API pública do Kabum.
 
     Parâmetros:
-        busca (str)        — termo de busca
-        nome_produto (str) — nome para exibir no log
-        token (str)        — access token OAuth
+        busca (str)        — termo de busca (ex: "teclado aula hero68")
+        nome_produto (str) — nome amigável para exibir no log
 
     Retorna:
         float — menor preço encontrado
@@ -40,24 +27,28 @@ def coletar_preco(busca, nome_produto, token):
     """
     print(f"\n🔍 Buscando: {nome_produto}")
 
-    url = "https://api.mercadolibre.com/sites/MLB/search"
-    headers = {"Authorization": f"Bearer {token}"}
-    params  = {"q": busca, "limit": 20}
+    params = {
+        "page_number": 1,
+        "page_size":   20,
+        "smart_filter": busca,
+        "sort_by":     "lower_price",   # Já retorna do menor pro maior
+    }
 
     try:
-        resposta = requests.get(url, headers=headers, params=params, timeout=10)
+        resposta = requests.get(BASE_URL, headers=HEADERS, params=params, timeout=10)
         resposta.raise_for_status()
 
-        resultados = resposta.json().get("results", [])
+        dados      = resposta.json()
+        produtos   = dados.get("data", [])
 
-        if not resultados:
+        if not produtos:
             print(f"   ⚠️ Nenhum resultado encontrado.")
             return None
 
         precos = [
-            item["price"]
-            for item in resultados
-            if "price" in item and item["price"] > 0
+            p["vlr_preco_desconto"] if p.get("vlr_preco_desconto") else p["vlr_preco"]
+            for p in produtos
+            if p.get("vlr_preco") and p.get("des_indisponivel") is False
         ]
 
         if precos:
@@ -65,7 +56,7 @@ def coletar_preco(busca, nome_produto, token):
             print(f"   ✅ Menor preço: R$ {menor:.2f} ({len(precos)} ofertas)")
             return menor
 
-        print(f"   ⚠️ Nenhum preço encontrado.")
+        print(f"   ⚠️ Nenhum preço disponível.")
         return None
 
     except requests.exceptions.RequestException as erro:
