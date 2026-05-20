@@ -10,15 +10,25 @@ import os
 
 PRODUTOS = [
     {
-        "nome": "Teclado Mecânico",
-        "url": "https://lista.mercadolivre.com.br/teclado-mecanico",
+        "nome": "Teclado Aula Hero68HE",
+        "url": "https://lista.mercadolivre.com.br/teclado-aula-hero68he",
         "preco_alerta": 200.00
     },
     {
-        "nome": "Mouse Gamer",
-        "url": "https://lista.mercadolivre.com.br/mouse-gamer",
+        "nome": "Mouse Attack Shark X3",
+        "url": "https://lista.mercadolivre.com.br/mouse-attack-shark-x3",
         "preco_alerta": 100.00
     },
+    {
+        "nome": "Notebook Dell Inspiron 15",
+        "url": "https://lista.mercadolivre.com.br/notebook-dell-inspiron-15",
+        "preco_alerta": 3500.00
+    },
+    {
+        "nome": "Smartphone Samsung Galaxy S25",
+        "url": "https://lista.mercadolivre.com.br/smartphone-samsung-galaxy-s25",
+        "preco_alerta": 3500.00
+    }
 ]
 
 # Lê as credenciais das variáveis de ambiente (seguro — nunca no código!)
