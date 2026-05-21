@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 import random
 import re
+import json
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -36,7 +37,33 @@ def coletar_preco(url, nome_produto):
         # Tenta encontrar o preço principal (mais comum no Kabum)
         preco = None
         
-        # Seletores específicos para Kabum
+        # Primeiro tenta encontrar o JSON com os preços
+        try:
+            # Procura por script com JSON de produtos
+            scripts = soup.find_all('script')
+            for script in scripts:
+                if script.string and 'prices' in script.string:
+                    # Tenta extrair o JSON
+                    json_match = re.search(r'window\.__INITIAL_STATE__\s*=\s*({.*?});', script.string, re.DOTALL)
+                    if json_match:
+                        json_data = json_match.group(1)
+                        # Converte para dicionário
+                        data = json.loads(json_data)
+                        # Procura pelo preço com desconto (o mais relevante)
+                        if 'product' in data and 'prices' in data['product']:
+                            prices = data['product']['prices']
+                            if 'priceWithDiscount' in prices:
+                                preco = prices['priceWithDiscount']
+                                print(f"   ✅ Preço com desconto encontrado no JSON: R$ {preco:.2f}")
+                                return preco
+                            elif 'price' in prices:
+                                preco = prices['price']
+                                print(f"   ✅ Preço encontrado no JSON: R$ {preco:.2f}")
+                                return preco
+        except Exception as e:
+            print(f"   ⚠️  Erro ao buscar preço no JSON: {e}")
+        
+        # Se não encontrou no JSON, tenta os seletores tradicionais
         selectors = [
             'span.preco_desconto_avista',
             'div.preco_desconto',
@@ -84,28 +111,6 @@ def coletar_preco(url, nome_produto):
                             return preco
                     except:
                         continue
-        
-        # Se ainda não encontrou, tenta encontrar o preço mais alto (que é o preço real)
-        if not preco:
-            # Busca todos os números que parecem preços
-            all_numbers = re.findall(r'\d+(?:\.\d+)?(?:,\d+)?', textos)
-            if all_numbers:
-                # Converte todos para float e encontra o maior
-                precos = []
-                for num in all_numbers:
-                    try:
-                        cleaned = num.replace('.', '').replace(',', '.')
-                        preco_num = float(cleaned)
-                        if preco_num > 1:  # Apenas preços razoáveis
-                            precos.append(preco_num)
-                    except:
-                        continue
-                
-                if precos:
-                    # Pega o maior preço (geralmente o preço real)
-                    preco = max(precos)
-                    print(f"   ✅ Preço encontrado como maior valor: R$ {preco:.2f}")
-                    return preco
         
         print(f"   ⚠️  Preço não encontrado na página")
         return None
