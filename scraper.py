@@ -33,52 +33,81 @@ def coletar_preco(url, nome_produto):
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Tenta múltiplos seletores comuns do Kabum
-        selectors = [
-            'meta[property="product:price:amount"]',
-            'div.preco_desconto_avista',
-            'span.preco_desconto',
-            'div.preco_promocao',
-            'div.preco',
-            'span.preco_por',
-            'div.preco_a_vista',
-            'div.price',
-            'span.price',
-            '[data-testid="product-price"]',
-            '.price-current'
-        ]
-        
+        # Tenta encontrar o preço principal (mais comum no Kabum)
         preco = None
         
-        # Tenta cada seletor
+        # Seletores específicos para Kabum
+        selectors = [
+            'span.preco_desconto_avista',
+            'div.preco_desconto',
+            'span.preco_promocao',
+            'div.preco_a_vista',
+            'div.preco',
+            'span.preco_por',
+            'div.price-current',
+            '[data-testid="product-price"]',
+            'meta[property="product:price:amount"]'
+        ]
+        
+        # Primeiro tenta os seletores específicos
         for selector in selectors:
-            elemento = soup.select_one(selector)
-            if elemento:
-                preco_text = elemento.get_text(strip=True)
-                print(f"   Elemento encontrado com seletor: {selector}")
-                print(f"   Texto encontrado: {preco_text}")
+            elementos = soup.select(selector)
+            if elementos:
+                for elemento in elementos:
+                    texto = elemento.get_text(strip=True)
+                    # Procura por valores monetários
+                    preco_match = re.search(r'R?\$?\s*([\d,]+(?:\.\d+)?)', texto)
+                    if preco_match:
+                        preco_str = preco_match.group(1).replace('.', '').replace(',', '.')
+                        try:
+                            preco = float(preco_str)
+                            print(f"   ✅ Preço encontrado com seletor '{selector}': R$ {preco:.2f}")
+                            return preco
+                        except:
+                            continue
+        
+        # Se não encontrou com seletores específicos, faz busca mais ampla
+        if not preco:
+            # Procura por todos os elementos que contêm "R$" ou "preço"
+            textos = soup.get_text()
+            # Busca por padrão de preço: R$ 1.234,56 ou R$ 1234.56
+            preco_matches = re.findall(r'R?\$\s*(\d+(?:\.\d+)?(?:,\d+)?)', textos)
+            
+            if preco_matches:
+                # Pega o primeiro preço maior que 1 (evita preços muito baixos)
+                for match in preco_matches:
+                    try:
+                        preco_str = match.replace('.', '').replace(',', '.')
+                        preco = float(preco_str)
+                        if preco > 1:  # Evita preços muito baixos
+                            print(f"   ✅ Preço encontrado por busca ampla: R$ {preco:.2f}")
+                            return preco
+                    except:
+                        continue
+        
+        # Se ainda não encontrou, tenta encontrar o preço mais alto (que é o preço real)
+        if not preco:
+            # Busca todos os números que parecem preços
+            all_numbers = re.findall(r'\d+(?:\.\d+)?(?:,\d+)?', textos)
+            if all_numbers:
+                # Converte todos para float e encontra o maior
+                precos = []
+                for num in all_numbers:
+                    try:
+                        cleaned = num.replace('.', '').replace(',', '.')
+                        preco_num = float(cleaned)
+                        if preco_num > 1:  # Apenas preços razoáveis
+                            precos.append(preco_num)
+                    except:
+                        continue
                 
-                # Extrai números e vírgulas
-                preco_match = re.search(r'[\d,]+(?:\.\d+)?', preco_text)
-                if preco_match:
-                    preco_str = preco_match.group().replace('.', '').replace(',', '.')
-                    preco = float(preco_str)
-                    print(f"   ✅ Preço encontrado: R$ {preco:.2f}")
+                if precos:
+                    # Pega o maior preço (geralmente o preço real)
+                    preco = max(precos)
+                    print(f"   ✅ Preço encontrado como maior valor: R$ {preco:.2f}")
                     return preco
         
-        # Se não encontrou com seletores específicos, tenta buscar por texto
-        if not preco:
-            # Procura por texto que contenha "R$" ou "preço"
-            textos = soup.get_text()
-            preco_match = re.search(r'R?\$?\s*([\d,]+(?:\.\d+)?)', textos)
-            if preco_match:
-                preco_str = preco_match.group(1).replace('.', '').replace(',', '.')
-                preco = float(preco_str)
-                print(f"   ✅ Preço encontrado por busca textual: R$ {preco:.2f}")
-                return preco
-        
         print(f"   ⚠️  Preço não encontrado na página")
-        print(f"   📋 Conteúdo da página (primeiros 500 caracteres): {response.text[:500]}")
         return None
         
     except Exception as erro:
