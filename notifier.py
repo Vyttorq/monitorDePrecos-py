@@ -1,61 +1,49 @@
-# ============================================================
-# notifier.py — Envio de alertas por e-mail
-# Usa Gmail via SMTP para notificar quando o preço cai
-# ============================================================
-
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-
-def enviar_alerta(remetente, senha, destinatario, nome_produto, preco_atual, preco_limite, url):
+def enviar_alerta(nome_produto, preco_atual, preco_limite, url_produto):
     """
-    Envia um e-mail de alerta quando o preço atingiu o limite desejado.
-
-    Parâmetros:
-        remetente    (str) — seu e-mail Gmail
-        senha        (str) — senha de app do Gmail
-        destinatario (str) — quem vai receber o alerta
-        nome_produto (str) — nome do produto
-        preco_atual  (float) — preço coletado agora
-        preco_limite (float) — seu limite configurado
-        url          (str) — link do produto
-
-    Retorna:
-        True  — e-mail enviado com sucesso
-        False — falhou
+    Envia alerta por e-mail quando o preço está abaixo do limite
     """
-    assunto = f"🔔 Alerta de Preço: {nome_produto} por R$ {preco_atual:.2f}!"
-
-    corpo = f"""Olá!
-
-O preço do produto que você monitora atingiu seu limite!
-
-📦 Produto : {nome_produto}
-💰 Preço   : R$ {preco_atual:.2f}
-🎯 Limite  : R$ {preco_limite:.2f}
-🔗 Link    : {url}
-
-Corra antes que acabe! 🚀
-
----
-Bot de Monitoramento de Preços 🤖
-"""
-
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    # Configuração do e-mail
+    remetente = os.getenv('EMAIL_REMETENTE')
+    senha = os.getenv('EMAIL_SENHA')
+    destinatario = os.getenv('EMAIL_DESTINATARIO')
+    
+    # Criação da mensagem
     msg = MIMEMultipart()
-    msg["From"]    = remetente
-    msg["To"]      = destinatario
-    msg["Subject"] = assunto
-    msg.attach(MIMEText(corpo, "plain", "utf-8"))
-
+    msg['From'] = remetente
+    msg['To'] = destinatario
+    msg['Subject'] = f"ALERTA: {nome_produto} - Preço Abaixo do Limite!"
+    
+    # Conteúdo do e-mail
+    corpo = f"""
+    ⚠️  ALERTA DE PREÇO - {nome_produto}
+    
+    📉 Preço Atual: R$ {preco_atual:.2f}
+    🎯 Preço Limite: R$ {preco_limite:.2f}
+    📊 Diferença: R$ {preco_limite - preco_atual:.2f}
+    
+    🔗 Link do produto: {url_produto}
+    
+    ⚠️  Este é o preço com desconto. O preço á vista pode ser diferente.
+    
+    Atenciosamente,
+    Bot de Monitoramento
+    """
+    
+    msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
+    
+    # Envio do e-mail
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as servidor:
-            servidor.login(remetente, senha)
-            servidor.sendmail(remetente, destinatario, msg.as_string())
-
-        print(f"   📧 Alerta enviado para {destinatario}!")
-        return True
-
-    except Exception as erro:
-        print(f"   ❌ Falha ao enviar e-mail: {erro}")
-        return False
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(remetente, senha)
+        text = msg.as_string()
+        server.sendmail(remetente, destinatario, text)
+        server.quit()
+        print(f"   ✅ E-mail enviado com sucesso!")
+    except Exception as e:
+        print(f"   ❌ Falha ao enviar e-mail: {e}")
+        raise

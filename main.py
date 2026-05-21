@@ -1,5 +1,5 @@
 # ============================================================
-# main.py — Ponto de entrada do Bot (versão simplificada)
+# main.py — Ponto de entrada do Bot
 # ============================================================
 
 import schedule
@@ -13,14 +13,16 @@ from config import (
     EMAIL_DESTINATARIO,
     INTERVALO_SEGUNDOS,
     ARQUIVO_CSV,
+    BLACKLIST  # Adicionado
 )
 from scraper import coletar_preco
 from storage import salvar_preco
 from notifier import enviar_alerta
 
-
 def verificar_precos():
-    """Verifica preços de todos os produtos."""
+    """
+    Percorre todos os produtos e verifica os preços.
+    """
     print(f"\n{'=' * 52}")
     print(f"  🤖 Verificação iniciada — {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     print(f"{'=' * 52}")
@@ -30,28 +32,34 @@ def verificar_precos():
         url    = produto["url"]
         limite = produto["preco_alerta"]
 
-        preco_atual = coletar_preco(url, nome)
-
-        if preco_atual is None:
-            print(f"   ⚠️  Pulando '{nome}' — não foi possível coletar.\n")
+        # Verifica se produto está na blacklist
+        if any(termo.lower() in nome.lower() for termo in BLACKLIST):
+            print(f"   ⚠️  Produto '{nome}' está na blacklist - pulando")
             continue
 
-        salvar_preco(ARQUIVO_CSV, nome, url, preco_atual)
+        preco_atual = coletar_preco(url, nome)
 
-        if preco_atual <= limite:
-            print(f"   🚨 ALERTA! Preço abaixo do limite!")
-            enviar_alerta(
-                remetente    = EMAIL_REMETENTE,
-                senha        = EMAIL_SENHA,
-                destinatario = EMAIL_DESTINATARIO,
-                nome_produto = nome,
-                preco_atual  = preco_atual,
-                preco_limite = limite,
-                url          = url,
-            )
+        if preco_atual:
+            # Salva no CSV
+            print(f"   💾 Salvo: {nome} — R$ {preco_atual:.2f}")
+            salvar_preco(nome, preco_atual)
+            
+            # Verifica se está abaixo do limite
+            if preco_atual <= limite:
+                print(f"   🚨 ALERTA! {nome} está abaixo do preço limite de R$ {limite:.2f}")
+                print(f"   📈 Preço atual: R$ {preco_atual:.2f}")
+                try:
+                    enviar_alerta(nome, preco_atual, limite, url)
+                except Exception as e:
+                    print(f"   ❌ Falha ao enviar e-mail: {e}")
         else:
-            diferenca = limite - preco_atual
-            print(f"   📊 R$ {preco_atual:.2f} | Faltam R$ {diferenca:.2f} pro alerta\n")
+            print(f"   ⚠️  Não foi possível coletar preço para '{nome}'")
+
+    print(f"  ✅ Verificação concluída!")
+    print(f"  📊 Produtos verificados: {len(PRODUTOS)}")
+
+# ... resto do código
+
 
     print(f"\n  ✅ Verificação concluída!")
     print(f"  ⏳ Próxima em {INTERVALO_SEGUNDOS // 60} minuto(s)...\n")

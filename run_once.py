@@ -44,7 +44,8 @@ def main():
                 url          = url,
             )
         else:
-            diferenca = limite - preco_atual
+            diferenca = preco_atual - limite
+
             print(f"   📊 R$ {preco_atual:.2f} | Faltam R$ {diferenca:.2f} pro alerta\n")
 
     print(f"\n  ✅ Verificação concluída!\n")

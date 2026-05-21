@@ -4,6 +4,16 @@
 
 import os
 
+# Lista de termos para filtrar (evitar produtos indesejados)
+BLACKLIST = [
+    "teste",
+    "exemplo",
+    "modelo",
+    "kit",
+    "combo",
+    "pacote"
+]
+
 PRODUTOS = [
     {
         "nome":         "Teclado MCHOSE Ace 68HE",
@@ -23,4 +33,3 @@ EMAIL_DESTINATARIO = os.getenv("EMAIL_DESTINATARIO", "")
 
 INTERVALO_SEGUNDOS = 3600
 ARQUIVO_CSV        = "historico_precos.csv"
-
