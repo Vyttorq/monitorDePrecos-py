@@ -35,17 +35,13 @@ def main():
         if preco_atual <= limite:
             print(f"   🚨 ALERTA! Enviando e-mail...")
             enviar_alerta(
-                remetente    = EMAIL_REMETENTE,
-                senha        = EMAIL_SENHA,
-                destinatario = EMAIL_DESTINATARIO,
                 nome_produto = nome,
                 preco_atual  = preco_atual,
                 preco_limite = limite,
-                url          = url,
+                url_produto  = url,
             )
         else:
-            diferenca = preco_atual - limite
-
+            diferenca = limite - preco_atual
             print(f"   📊 R$ {preco_atual:.2f} | Faltam R$ {diferenca:.2f} pro alerta\n")
 
     print(f"\n  ✅ Verificação concluída!\n")
