@@ -1,11 +1,12 @@
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 def enviar_alerta(nome_produto, preco_atual, preco_limite, url_produto):
     """
     Envia alerta por e-mail quando o preço está abaixo do limite
     """
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    
     # Configuração do e-mail
     remetente = os.getenv('EMAIL_REMETENTE')
     senha = os.getenv('EMAIL_SENHA')
